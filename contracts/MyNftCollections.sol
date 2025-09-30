@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {ERC721A} from "erc721a/contracts/ERC721A.sol";
+
+contract SimpleERC721 is ERC721URIStorage, Ownable {
+  using Strings for uint256;
+
+  uint256 private _nextTokenId = 1;
+
+  constructor(string memory name_, string memory symbol_)
+    ERC721(name_, symbol_)
+    Ownable(msg.sender)
+  {}
+
+  function mintTo(address to, string memory tokenURI_) external onlyOwner {
+    uint256 tokenId = _nextTokenId;
+    _nextTokenId++;
+    _safeMint(to, tokenId);
+    _setTokenURI(tokenId, tokenURI_);
+  }
+
+  function burn(uint256 tokenId) external {
+    require(_isApprovedOrOwner(msg.sender, tokenId), "Not owner nor approved");
+    _burn(tokenId);
+  }
+}
+
+contract SimpleERC721A is ERC721A, Ownable {
+  string private baseTokenURI;
+  uint96 public immutable maxSupply;
+  uint64 public immutable maxPerWallet;
+  uint128 public immutable mintPrice;
+  bool public mintingActive;
+
+  mapping(address => uint256) public minted;
+
+  constructor(
+    string memory collectionName,
+    string memory collectionSymbol,
+    string memory baseURI,
+    uint96 maxSupply_,
+    uint64 maxPerWallet_,
+    uint128 mintPriceWei
+  ) ERC721A(collectionName, collectionSymbol) Ownable(msg.sender) {
+    require(maxSupply_ > 0, "Max supply required");
+    baseTokenURI = baseURI;
+    maxSupply = maxSupply_;
+    maxPerWallet = maxPerWallet_;
+    mintPrice = mintPriceWei;
+    mintingActive = false;
+  }
+
+  function toggleMinting(bool active) external onlyOwner {
+    mintingActive = active;
+  }
+
+  function setBaseURI(string calldata newBaseURI) external onlyOwner {
+    baseTokenURI = newBaseURI;
+  }
+
+  function ownerMint(address to, uint256 quantity) external onlyOwner {
+    require(totalSupply() + quantity <= maxSupply, "Exceeds max supply");
+    _mint(to, quantity);
+  }
+
+  function publicMint(uint256 quantity) external payable {
+    require(mintingActive, "Mint inactive");
+    require(quantity > 0, "Quantity zero");
+    require(totalSupply() + quantity <= maxSupply, "Exceeds max supply");
+    require(minted[msg.sender] + quantity <= maxPerWallet, "Wallet limit");
+    require(msg.value == uint256(mintPrice) * quantity, "Incorrect value");
+
+    minted[msg.sender] += quantity;
+    _mint(msg.sender, quantity);
+  }
+
+  function withdraw(address payable recipient) external onlyOwner {
+    uint256 balance = address(this).balance;
+    require(balance > 0, "Nothing to withdraw");
+    recipient.transfer(balance);
+  }
+
+  function _baseURI() internal view override returns (string memory) {
+    return baseTokenURI;
+  }
+
+  function _startTokenId() internal pure override returns (uint256) {
+    return 1;
+  }
+}
