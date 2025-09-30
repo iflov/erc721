@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC721A} from "erc721a/contracts/ERC721A.sol";
 
+/// @notice 간단한 단일 민팅 예제를 제공하는 전통적인 OpenZeppelin ERC721 구현입니다.
 contract SimpleERC721 is ERC721URIStorage, Ownable {
-  using Strings for uint256;
-
   uint256 private _nextTokenId = 1;
 
   constructor(string memory name_, string memory symbol_)
@@ -25,11 +23,13 @@ contract SimpleERC721 is ERC721URIStorage, Ownable {
   }
 
   function burn(uint256 tokenId) external {
-    require(_isApprovedOrOwner(msg.sender, tokenId), "Not owner nor approved");
+    address owner = _requireOwned(tokenId);
+    _checkAuthorized(owner, msg.sender, tokenId);
     _burn(tokenId);
   }
 }
 
+/// @notice 가스 효율적인 배치 민팅을 지원하는 ERC721A 기반 컬렉션입니다.
 contract SimpleERC721A is ERC721A, Ownable {
   string private baseTokenURI;
   uint96 public immutable maxSupply;
