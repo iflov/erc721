@@ -20,6 +20,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@openzeppelin/contracts": "^5.4.0"
+    "@openzeppelin/contracts": "^5.4.0",
+    "erc721a": "^4.3.0"
   }
 }
